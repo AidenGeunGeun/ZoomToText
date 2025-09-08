@@ -9,8 +9,6 @@ except Exception as e:  # pragma: no cover
     sd = None
 
 import numpy as np
-import wave
-
 
 def record_audio(
     duration: float,
@@ -45,3 +43,10 @@ def record_audio(
         wf.setsampwidth(2)  # 16-bit audio
         wf.setframerate(samplerate)
         wf.writeframes(recording.tobytes())
+
+def list_devices() -> list[str]:  # pragma: no cover - passthrough
+    """Return available audio input devices."""
+    if sd is None:
+        raise RuntimeError("sounddevice is required to list devices")
+    return sd.query_devices()
+
