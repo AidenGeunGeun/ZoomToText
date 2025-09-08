@@ -8,7 +8,8 @@ try:  # pragma: no cover - optional dependency
 except Exception as e:  # pragma: no cover
     sd = None
 
-import numpy as np
+import wave
+
 
 def record_audio(
     duration: float,
@@ -49,4 +50,3 @@ def list_devices() -> list[str]:  # pragma: no cover - passthrough
     if sd is None:
         raise RuntimeError("sounddevice is required to list devices")
     return sd.query_devices()
-

@@ -14,12 +14,13 @@ from typing import Iterable, List
 @dataclass
 class Segment:
     """Represents a transcription segment."""
+
     start: float
     end: float
     text: str
-
     confidence: float | None = None
     model: str | None = None
+
 
 class ASRModel:
     """Abstract base class for ASR engines."""
@@ -70,8 +71,58 @@ class WhisperASR(ASRModel):
         return segments
 
 
+class FallbackASR(ASRModel):
+    """ASR that retries low-confidence segments with a backup model."""
+
+    def __init__(
+        self,
+        primary: ASRModel,
+        fallback: ASRModel,
+        *,
+        threshold: float = 0.25,
+    ) -> None:
+        self.primary = primary
+        self.fallback = fallback
+        self.threshold = threshold
+
+    def transcribe(self, audio_path: Path) -> List[Segment]:
+        primary_segs = self.primary.transcribe(audio_path)
+        # Quick check to avoid loading the fallback model unnecessarily
+        needs_fallback = any(
+            seg.confidence is not None and seg.confidence < self.threshold
+            for seg in primary_segs
+        )
+        if not needs_fallback:
+            return primary_segs
+
+        fallback_segs = self.fallback.transcribe(audio_path)
+        result: List[Segment] = []
+        for seg in primary_segs:
+            if seg.confidence is not None and seg.confidence < self.threshold:
+                # Find fallback segment with maximum time overlap
+                best = None
+                best_overlap = 0.0
+                for fb in fallback_segs:
+                    overlap = min(seg.end, fb.end) - max(seg.start, fb.start)
+                    if overlap > best_overlap:
+                        best_overlap = overlap
+                        best = fb
+                if best and (best.confidence or 0.0) >= (seg.confidence or 0.0):
+                    result.append(best)
+                else:
+                    result.append(seg)
+            else:
+                result.append(seg)
+        return result
+
+
 class DummyASR(ASRModel):
     """A trivial ASR used for tests and documentation examples."""
+
     def __init__(self, segments: Iterable[Segment] | None = None) -> None:
         if segments is None:
             segments = [Segment(0.0, 1.0, "hello world", model="dummy")]
+        self.segments = list(segments)
+
+    def transcribe(self, audio_path: Path) -> List[Segment]:
+        return self.segments

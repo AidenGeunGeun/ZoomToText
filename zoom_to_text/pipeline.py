@@ -52,3 +52,7 @@ def process_audio(
     ]
     metadata_path = output_dir / "segments.json"
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    summary_text = summarizer.summarize(transcript)
+    summary_path = output_dir / "summary.md"
+    summary_path.write_text(summary_text, encoding="utf-8")
+    return transcript_path, summary_path
