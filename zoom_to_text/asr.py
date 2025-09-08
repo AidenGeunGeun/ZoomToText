@@ -14,11 +14,12 @@ from typing import Iterable, List
 @dataclass
 class Segment:
     """Represents a transcription segment."""
-
     start: float
     end: float
     text: str
 
+    confidence: float | None = None
+    model: str | None = None
 
 class ASRModel:
     """Abstract base class for ASR engines."""
@@ -37,26 +38,40 @@ class WhisperASR(ASRModel):
 
     def _load(self):
         if self._model is None:
-            import whisper  # Lazy import so tests don't require the package
+            try:
+                import whisper  # Lazy import so tests don't require the package
+            except ModuleNotFoundError as exc:  # pragma: no cover - import guard
+                raise RuntimeError(
+                    "WhisperASR requires the 'openai-whisper' package. Install with"
+                    " `pip install .[whisper]`."
+                ) from exc
 
             self._model = whisper.load_model(self.model_name)
 
     def transcribe(self, audio_path: Path) -> List[Segment]:
         self._load()
         result = self._model.transcribe(str(audio_path))
-        return [
-            Segment(start=seg["start"], end=seg["end"], text=seg["text"].strip())
-            for seg in result["segments"]
-        ]
+        segments: List[Segment] = []
+        for seg in result["segments"]:
+            conf = None
+            if "avg_logprob" in seg:
+                import math
+
+                conf = math.exp(seg["avg_logprob"])
+            segments.append(
+                Segment(
+                    start=seg["start"],
+                    end=seg["end"],
+                    text=seg["text"].strip(),
+                    confidence=conf,
+                    model=self.model_name,
+                )
+            )
+        return segments
 
 
 class DummyASR(ASRModel):
     """A trivial ASR used for tests and documentation examples."""
-
     def __init__(self, segments: Iterable[Segment] | None = None) -> None:
         if segments is None:
-            segments = [Segment(0.0, 1.0, "hello world")]
-        self.segments = list(segments)
-
-    def transcribe(self, audio_path: Path) -> List[Segment]:
-        return self.segments
+            segments = [Segment(0.0, 1.0, "hello world", model="dummy")]
