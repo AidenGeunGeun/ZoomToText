@@ -14,13 +14,12 @@ from typing import Iterable, List
 @dataclass
 class Segment:
     """Represents a transcription segment."""
-
     start: float
     end: float
     text: str
+
     confidence: float | None = None
     model: str | None = None
-
 
 class ASRModel:
     """Abstract base class for ASR engines."""
@@ -73,11 +72,6 @@ class WhisperASR(ASRModel):
 
 class DummyASR(ASRModel):
     """A trivial ASR used for tests and documentation examples."""
-
     def __init__(self, segments: Iterable[Segment] | None = None) -> None:
         if segments is None:
             segments = [Segment(0.0, 1.0, "hello world", model="dummy")]
-        self.segments = list(segments)
-
-    def transcribe(self, audio_path: Path) -> List[Segment]:
-        return self.segments

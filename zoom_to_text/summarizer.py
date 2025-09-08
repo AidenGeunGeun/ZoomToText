@@ -6,6 +6,7 @@ import time
 from typing import List
 
 
+
 class Summarizer(ABC):
     """Abstract base class for text summarizers."""
 
@@ -40,6 +41,7 @@ class OpenAISummarizer(Summarizer):
         max_chars: int = 4000,
         max_retries: int = 3,
     ) -> None:
+
         import openai
 
         self.client = openai.OpenAI(api_key=api_key)

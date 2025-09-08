@@ -21,7 +21,7 @@ def _resolve_asr(model: str) -> WhisperASR | DummyASR:
         return DummyASR()
     return WhisperASR(model_name=model)
 
-
+  
 def _resolve_summarizer(
     provider: str, api_key: Optional[str], model: str
 ) -> OpenAISummarizer | GeminiSummarizer | DummySummarizer:
