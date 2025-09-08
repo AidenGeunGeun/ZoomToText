@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 import time
 from typing import List
 
-
 class Summarizer(ABC):
     """Abstract base class for text summarizers."""
 

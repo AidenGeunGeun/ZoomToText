@@ -1,11 +1,9 @@
 """High level pipeline combining ASR and summarization."""
 from __future__ import annotations
-
 from datetime import timedelta
 from pathlib import Path
 from typing import Iterable, List
 import json
-
 from .asr import ASRModel, Segment
 from .summarizer import Summarizer
 
@@ -42,7 +40,6 @@ def process_audio(
     transcript = format_transcript(segments)
     transcript_path = output_dir / "transcript.txt"
     transcript_path.write_text(transcript, encoding="utf-8")
-
     metadata = [
         {
             "start": seg.start,
@@ -55,7 +52,6 @@ def process_audio(
     ]
     metadata_path = output_dir / "segments.json"
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-
     summary_text = summarizer.summarize(transcript)
     summary_path = output_dir / "summary.md"
     summary_path.write_text(summary_text, encoding="utf-8")
