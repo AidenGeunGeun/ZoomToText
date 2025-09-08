@@ -27,6 +27,7 @@ Upgrade `pip`/`setuptools` if installation fails:
 python -m pip install --upgrade pip setuptools
 ```
 
+
 ## Usage
 
 ```
@@ -40,6 +41,7 @@ python -m zoom_to_text.cli transcribe --live --duration 30 --output outdir
 ```
 
 The CLI accepts common audio formats (`.wav`, `.mp3`, `.m4a`) and video
+
 containers such as `.mp4`; anything ffmpeg can decode will work. Low-confidence
 segments in the transcript are marked with `[LOW CONFIDENCE]`.
 
@@ -58,6 +60,7 @@ To list available audio capture devices:
 ```
 python -m zoom_to_text.cli transcribe --list-devices
 ```
+
 
 ## Development
 
