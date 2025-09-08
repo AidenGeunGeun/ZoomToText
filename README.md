@@ -27,11 +27,11 @@ Upgrade `pip`/`setuptools` if installation fails:
 python -m pip install --upgrade pip setuptools
 ```
 
-
 ## Usage
 
 ```
-python -m zoom_to_text.cli transcribe --input input.wav --output outdir
+python -m zoom_to_text.cli transcribe --input input.wav --output outdir --fallback-model large
+
 ```
 
 To record audio directly from your system instead of using a file:
@@ -41,7 +41,6 @@ python -m zoom_to_text.cli transcribe --live --duration 30 --output outdir
 ```
 
 The CLI accepts common audio formats (`.wav`, `.mp3`, `.m4a`) and video
-
 containers such as `.mp4`; anything ffmpeg can decode will work. Low-confidence
 segments in the transcript are marked with `[LOW CONFIDENCE]`.
 
@@ -55,12 +54,15 @@ lightweight dummy implementations which are useful for testing.  Summarization
 requests are chunked to handle long transcripts and include simple retry logic
 for transient API errors.
 
+Low-confidence segments are retried with a larger Whisper model when
+`--fallback-model` is supplied.  The most confident result is kept; segments
+remaining below the threshold are annotated with `[LOW CONFIDENCE]` in the
+transcript and can be reviewed in `segments.json`.
 To list available audio capture devices:
 
 ```
 python -m zoom_to_text.cli transcribe --list-devices
 ```
-
 
 ## Development
 

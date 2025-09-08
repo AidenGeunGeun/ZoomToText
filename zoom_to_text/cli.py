@@ -8,7 +8,7 @@ import tempfile
 
 import typer
 
-from .asr import DummyASR, WhisperASR
+from .asr import ASRModel, DummyASR, WhisperASR, FallbackASR
 from .pipeline import process_audio
 from .summarizer import DummySummarizer, OpenAISummarizer, GeminiSummarizer
 from .capture import record_audio, list_devices
@@ -16,12 +16,21 @@ from .capture import record_audio, list_devices
 app = typer.Typer(add_completion=False)
 
 
-def _resolve_asr(model: str) -> WhisperASR | DummyASR:
+def _resolve_asr(model: str, fallback: Optional[str]) -> ASRModel:
+    primary: ASRModel
     if model == "dummy":
-        return DummyASR()
-    return WhisperASR(model_name=model)
+        primary = DummyASR()
+    else:
+        primary = WhisperASR(model_name=model)
+    if not fallback:
+        return primary
+    if fallback == "dummy":
+        backup = DummyASR()
+    else:
+        backup = WhisperASR(model_name=fallback)
+    return FallbackASR(primary, backup)
 
-  
+
 def _resolve_summarizer(
     provider: str, api_key: Optional[str], model: str
 ) -> OpenAISummarizer | GeminiSummarizer | DummySummarizer:
@@ -44,7 +53,10 @@ def transcribe(
     duration: float = typer.Option(0.0, help="Duration in seconds for live capture."),
     device: Optional[str] = typer.Option(None, help="Input device for live capture."),
     output_dir: Path = typer.Option(Path("output")),
-    asr_model: str = typer.Option("small", help="Whisper model name or 'dummy'."),
+    asr_model: str = typer.Option("small", help="Primary Whisper model name or 'dummy'."),
+    fallback_model: Optional[str] = typer.Option(
+        None, help="Optional Whisper model to retry low-confidence segments."
+    ),
     summary_provider: str = typer.Option(
         "openai", help="Summarization backend: openai, gemini, dummy"
     ),
@@ -82,7 +94,7 @@ def transcribe(
                 raise typer.BadParameter(str(exc))
             input_path = temp_path
 
-        asr = _resolve_asr(asr_model)
+        asr = _resolve_asr(asr_model, fallback_model)
         summarizer = _resolve_summarizer(summary_provider, api_key, summary_model)
         process_audio(input_path, asr, summarizer, output_dir)
         typer.echo(f"Transcript and summary written to {output_dir}")
