@@ -31,6 +31,7 @@ python -m pip install --upgrade pip setuptools
 
 ```
 python -m zoom_to_text.cli transcribe --input input.wav --output outdir --fallback-model large
+
 ```
 
 To record audio directly from your system instead of using a file:
@@ -57,7 +58,6 @@ Low-confidence segments are retried with a larger Whisper model when
 `--fallback-model` is supplied.  The most confident result is kept; segments
 remaining below the threshold are annotated with `[LOW CONFIDENCE]` in the
 transcript and can be reviewed in `segments.json`.
-
 To list available audio capture devices:
 
 ```

@@ -45,7 +45,6 @@ def record_audio(
         wf.setframerate(samplerate)
         wf.writeframes(recording.tobytes())
 
-
 def list_devices() -> list[str]:  # pragma: no cover - passthrough
     """Return available audio input devices."""
     if sd is None:
