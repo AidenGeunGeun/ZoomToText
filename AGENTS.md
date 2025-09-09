@@ -12,10 +12,10 @@
 - Run tests (pytest configured via `pyproject.toml`):
   - `pytest -q`
 - Run CLI locally:
-  - File input: `python -m zoom_to_text.cli transcribe --input input.wav --output-dir outdir`
+  - File input: `python -m zoom_to_text.cli --input input.wav --output-dir outdir`
   - System audio (loopback):
     - `python -m zoom_to_text.cli --list-devices` (note speaker index)
-    - `python -m zoom_to_text.cli transcribe --live --device <index> --output-dir outdir`
+    - `python -m zoom_to_text.cli --live --device <index> --output-dir outdir`
 
 ## Coding Style & Naming Conventions
 - Language: Python 3.10+ with type hints.
