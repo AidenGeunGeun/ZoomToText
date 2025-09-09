@@ -25,7 +25,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\bootstrap.ps1 -Tor
 ```
 
 - Creates `.venv`, upgrades pip, installs `soundcard` (loopback), PyTorch (CPU), Whisper, and FFmpeg (via winget/choco when available).
-- For NVIDIA GPU, use `-Torch cu121` or `-Torch cu122` or whatever CUDA version you're running, instead of `cpu`.
+- For NVIDIA GPU, use `-Torch cu121` or `-Torch cu122` instead of `cpu`.
 
 Option B — manual steps (use a virtual environment):
 
@@ -54,7 +54,7 @@ python -m zoom_to_text.cli --list-devices
 Transcribe a file:
 
 ```
-python -m zoom_to_text.cli transcribe --input input.wav --output-dir outdir
+python -m zoom_to_text.cli --input input.wav --output-dir outdir
 ```
 
 Capture system audio (live) until Ctrl+C:
