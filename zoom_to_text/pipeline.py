@@ -1,11 +1,10 @@
-"""High level pipeline combining ASR and summarization."""
+"""High level pipeline for ASR-only processing (file or live)."""
 from __future__ import annotations
-from datetime import timedelta
+from datetime import timedelta, datetime
 from pathlib import Path
 from typing import Iterable, List
 import json
 from .asr import ASRModel, Segment
-from .summarizer import Summarizer
 
 
 def format_transcript(
@@ -27,18 +26,18 @@ def format_transcript(
 def process_audio(
     input_path: Path,
     asr: ASRModel,
-    summarizer: Summarizer,
     output_dir: Path,
 ) -> tuple[Path, Path]:
-    """Process ``input_path`` and write transcript and summary files.
+    """Process ``input_path`` and write transcript and segments metadata.
 
-    Returns a tuple of paths ``(transcript_path, summary_path)``.
+    Returns a tuple ``(transcript_path, metadata_path)``.
     """
 
     output_dir.mkdir(parents=True, exist_ok=True)
     segments: List[Segment] = asr.transcribe(input_path)
     transcript = format_transcript(segments)
-    transcript_path = output_dir / "transcript.txt"
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    transcript_path = output_dir / f"transcript-{ts}.txt"
     transcript_path.write_text(transcript, encoding="utf-8")
     metadata = [
         {
@@ -50,9 +49,6 @@ def process_audio(
         }
         for seg in segments
     ]
-    metadata_path = output_dir / "segments.json"
+    metadata_path = output_dir / f"segments-{ts}.json"
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-    summary_text = summarizer.summarize(transcript)
-    summary_path = output_dir / "summary.md"
-    summary_path.write_text(summary_text, encoding="utf-8")
-    return transcript_path, summary_path
+    return transcript_path, metadata_path

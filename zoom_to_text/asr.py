@@ -46,14 +46,64 @@ class WhisperASR(ASRModel):
                     "WhisperASR requires the 'openai-whisper' package. Install with"
                     " `pip install .[whisper]`."
                 ) from exc
+            # Prefer GPU when available
+            try:
+                import torch  # type: ignore
 
-            self._model = whisper.load_model(self.model_name)
+                device = "cuda" if torch.cuda.is_available() else "cpu"  # pragma: no cover - env dependent
+            except Exception:
+                device = None  # let whisper decide
+
+            try:
+                if device:
+                    self._model = whisper.load_model(self.model_name, device=device)
+                else:
+                    self._model = whisper.load_model(self.model_name)
+            except Exception as exc:
+                # Graceful compatibility: map common turbo aliases to large-v3 if unsupported
+                alias = self.model_name.lower()
+                if alias in {"turbo", "large-v3-turbo", "whisper-large-v3-turbo"}:
+                    if device:
+                        self._model = whisper.load_model("large-v3", device=device)
+                    else:
+                        self._model = whisper.load_model("large-v3")
+                else:
+                    raise
 
     def transcribe(self, audio_path: Path) -> List[Segment]:
         self._load()
-        result = self._model.transcribe(str(audio_path))
+        path_str = str(audio_path)
+        # Default: let Whisper use ffmpeg/load_audio for maximum compatibility
+        try:
+            result_dict = self._model.transcribe(path_str)
+        except Exception as exc:
+            # Fallback: if ffmpeg is missing but the input is a simple 16kHz WAV
+            # (as produced by our loopback capture), read samples directly.
+            if path_str.lower().endswith(".wav"):
+                try:
+                    import wave
+                    import numpy as np  # type: ignore
+
+                    with wave.open(path_str, "rb") as wf:
+                        fr = wf.getframerate()
+                        ch = wf.getnchannels()
+                        sw = wf.getsampwidth()
+                        frames = wf.getnframes()
+                        if fr == 16000 and sw == 2:
+                            raw = wf.readframes(frames)
+                            audio = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+                            if ch and ch > 1:
+                                audio = audio.reshape(-1, ch).mean(axis=1)
+                            result_dict = self._model.transcribe(audio)
+                        else:
+                            # Non 16kHz/16-bit WAV still needs ffmpeg
+                            raise
+                except Exception:
+                    raise exc
+            else:
+                raise exc
         segments: List[Segment] = []
-        for seg in result["segments"]:
+        for seg in result_dict["segments"]:
             conf = None
             if "avg_logprob" in seg:
                 import math
