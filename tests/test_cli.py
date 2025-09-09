@@ -34,12 +34,12 @@ def test_cli_file_transcription(tmp_path: Path, monkeypatch):
             str(tmp_path),
             "--asr-model",
             "dummy",
-            "--summary-provider",
-            "dummy",
         ],
     )
     assert result.exit_code == 0, result.stdout
-    transcript = (tmp_path / "transcript.txt").read_text()
+    transcripts = sorted(tmp_path.glob("transcript-*.txt"))
+    assert transcripts, "No transcript-* file written"
+    transcript = transcripts[-1].read_text()
     assert "[LOW CONFIDENCE]" in transcript
-    assert (tmp_path / "summary.md").exists()
-    assert (tmp_path / "segments.json").exists()
+    segments = sorted(tmp_path.glob("segments-*.json"))
+    assert segments, "No segments-* file written"

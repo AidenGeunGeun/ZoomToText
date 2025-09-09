@@ -2,13 +2,11 @@
 name = "zoom-to-text"
 version = "0.1.0"
 requires-python = ">=3.10"
-description = "CLI tool for transcribing and summarizing lecture audio."
+description = "Windows CLI tool for local Whisper ASR (live or file)."
 authors = [{name = "ZoomToText"}]
 dependencies = [
     "typer>=0.12",
-    "openai>=1.6.1",
-    "sounddevice>=0.4.6",
-    "google-generativeai>=0.3.2",
+    "soundcard>=0.4.2",
 ]
 
 # Whisper is optional; the CLI falls back to dummy ASR when missing.
@@ -16,6 +14,11 @@ dependencies = [
 
 [project.optional-dependencies]
 whisper = ["openai-whisper>=20231117"]
+dev = [
+    "black>=24.3.0",
+    "ruff>=0.5.0",
+    "pre-commit>=3.6.0",
+]
 
 [tool.pytest.ini_options]
 addopts = "-q"
@@ -23,3 +26,33 @@ addopts = "-q"
 [build-system]
 requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+exclude = [
+  ".git",
+  ".mypy_cache",
+  ".pytest_cache",
+  "venv",
+  ".venv",
+  "build",
+  "dist",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [
+  ".git",
+  ".mypy_cache",
+  ".pytest_cache",
+  "venv",
+  ".venv",
+  "build",
+  "dist",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = []

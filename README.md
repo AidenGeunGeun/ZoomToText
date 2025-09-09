@@ -1,72 +1,91 @@
 # ZoomToText
 
-Command line tool for Windows that transcribes lecture audio and generates a
-brief summary.  The pipeline runs ASR locally and sends the transcript to a
-cloud LLM for summarization.
+Windows‑native CLI that performs local Whisper ASR on audio from a file or from system audio (loopback). It writes a timestamped transcript and segment metadata locally. No cloud features.
 
-## Installation
+## Features
+- Local Whisper ASR (GPU preferred; CPU supported)
+- Live system‑audio capture (loopback) or file input
+- Simple device selection (`--list-devices`, `--device <index>`) on Windows
+- Timestamped outputs to avoid overwrites
 
-Requires **Python 3.10+**.  Install the package and its runtime dependencies
-with:
+## Requirements
+- Windows 10/11
+- Python 3.10+
+- FFmpeg on PATH for non‑WAV inputs (recommended)
+
+## Install
+
+Option A — bootstrap script (recommended):
+
+1) Open PowerShell in the repo folder
+2) Run:
 
 ```
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\bootstrap.ps1 -Torch cpu -InstallFFmpeg
+```
+
+- Creates `.venv`, upgrades pip, installs `soundcard` (loopback), PyTorch (CPU), Whisper, and FFmpeg (via winget/choco when available).
+- For NVIDIA GPU, use `-Torch cu121` or `-Torch cu122` instead of `cpu`.
+
+Option B — manual steps (use a virtual environment):
+
+```
+python -m venv .venv
+. .\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install soundcard
+python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 python -m pip install .[whisper]
 ```
 
-This installs:
-
-- `typer` – command line interface
-- `openai` – OpenAI API client
-- `sounddevice` – optional live audio capture
-- `google-generativeai` – Gemini API client
-- `openai-whisper` – optional local ASR backend
-
-Upgrade `pip`/`setuptools` if installation fails:
-
-```
-python -m pip install --upgrade pip setuptools
-```
+Notes:
+- Always install inside your virtual environment.
+- To support formats like mp3/m4a/mp4, install FFmpeg (e.g., `winget install -e --id Gyan.FFmpeg`).
+- Loopback capture uses `soundcard` and works on common Windows setups without extra config.
 
 ## Usage
 
-```
-python -m zoom_to_text.cli transcribe --input input.wav --output outdir --fallback-model large
+List devices (loopback speakers):
 
 ```
-
-To record audio directly from your system instead of using a file:
-
-```
-python -m zoom_to_text.cli transcribe --live --duration 30 --output outdir
+python -m zoom_to_text.cli --list-devices
 ```
 
-The CLI accepts common audio formats (`.wav`, `.mp3`, `.m4a`) and video
-containers such as `.mp4`; anything ffmpeg can decode will work. Low-confidence
-segments in the transcript are marked with `[LOW CONFIDENCE]`.
-
-Each run also writes a `segments.json` file containing per-segment metadata
-(`start`, `end`, `confidence`, and `model`).
-
-By default the CLI uses OpenAI Whisper for ASR and OpenAI ChatGPT for
-summarization.  Provide an `OPENAI_API_KEY` (or `GEMINI_API_KEY`) environment
-variable to enable summarization.  Without a key the tool falls back to
-lightweight dummy implementations which are useful for testing.  Summarization
-requests are chunked to handle long transcripts and include simple retry logic
-for transient API errors.
-
-Low-confidence segments are retried with a larger Whisper model when
-`--fallback-model` is supplied.  The most confident result is kept; segments
-remaining below the threshold are annotated with `[LOW CONFIDENCE]` in the
-transcript and can be reviewed in `segments.json`.
-To list available audio capture devices:
+Transcribe a file:
 
 ```
-python -m zoom_to_text.cli transcribe --list-devices
+python -m zoom_to_text.cli transcribe --input input.wav --output-dir outdir
 ```
+
+Capture system audio (live) until Ctrl+C:
+
+```
+python -m zoom_to_text.cli --live --device <index> --output-dir outdir
+```
+
+Model selection:
+- Default is `--asr-model turbo`; if unavailable, falls back to `large-v3` automatically.
+- You can choose other Whisper models (e.g., `small`, `base`, `large-v3`) or `dummy` for tests.
+
+Outputs (no overwrites):
+- `transcript-YYYYMMDD-HHMMSS.txt`
+- `segments-YYYYMMDD-HHMMSS.json`
+
+Tip: `--output-dir` also has an alias `--output`.
+
+## Troubleshooting
+- FFmpeg missing: If non‑WAV inputs fail, install FFmpeg and ensure it’s on PATH.
+- No devices listed: Ensure `soundcard` is installed and you have at least one playback device enabled in Windows.
+- GPU not used: Install the matching CUDA wheel via `-Torch cu121` or `-Torch cu122` in the bootstrap script, and verify your NVIDIA drivers.
+- Whisper not installed: Install extras with `pip install .[whisper]`.
 
 ## Development
 
 ```
-python -m pip install .[whisper]
-pytest
+python -m pip install .[dev,whisper]
+pre-commit install
+pytest -q
 ```
+
+- Lint/format: `ruff --fix . && black .` or `pre-commit run --all-files`
+- Tests prefer the `DummyASR` backend to stay fast and deterministic.
