@@ -1,9 +1,8 @@
 """ASR module for ZoomToText.
 
 Provides an abstract base class :class:`ASRModel` and concrete implementations
-for Whisper based transcription. A lightweight :class:`DummyASR` is included
-for testing purposes. Confidence values are derived heuristically from
-Whisper's avg_logprob when available.
+for Whisper based transcription.  A lightweight :class:`DummyASR` is included
+for testing purposes.
 """
 from __future__ import annotations
 
@@ -45,47 +44,16 @@ class WhisperASR(ASRModel):
             except ModuleNotFoundError as exc:  # pragma: no cover - import guard
                 raise RuntimeError(
                     "WhisperASR requires the 'openai-whisper' package. Install with"
-                    " `pip install -U openai-whisper` (or install this project via"
-                    " `pip install .`, which depends on it)."
+                    " `pip install .[whisper]`."
                 ) from exc
-            # Require ffmpeg for robust decoding/resampling (as recommended by Whisper)
-            import shutil
-            if shutil.which("ffmpeg") is None:
-                raise RuntimeError(
-                    "ffmpeg is required but was not found in PATH."
-                    " Install ffmpeg and ensure `ffmpeg` is available from the command line."
-                )
-            # Prefer GPU when available
-            try:
-                import torch  # type: ignore
 
-                device = "cuda" if torch.cuda.is_available() else "cpu"  # pragma: no cover - env dependent
-            except Exception:
-                device = None  # let whisper decide
-
-            try:
-                if device:
-                    self._model = whisper.load_model(self.model_name, device=device)
-                else:
-                    self._model = whisper.load_model(self.model_name)
-            except Exception as exc:
-                # Graceful compatibility: map common turbo aliases to large-v3 if unsupported
-                alias = self.model_name.lower()
-                if alias in {"turbo", "large-v3-turbo", "whisper-large-v3-turbo"}:
-                    if device:
-                        self._model = whisper.load_model("large-v3", device=device)
-                    else:
-                        self._model = whisper.load_model("large-v3")
-                else:
-                    raise
+            self._model = whisper.load_model(self.model_name)
 
     def transcribe(self, audio_path: Path) -> List[Segment]:
         self._load()
-        path_str = str(audio_path)
-        # Let Whisper use ffmpeg/load_audio for decoding and resampling
-        result_dict = self._model.transcribe(path_str)
+        result = self._model.transcribe(str(audio_path))
         segments: List[Segment] = []
-        for seg in result_dict["segments"]:
+        for seg in result["segments"]:
             conf = None
             if "avg_logprob" in seg:
                 import math

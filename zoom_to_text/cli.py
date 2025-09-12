@@ -27,8 +27,8 @@ def _resolve_asr(model: str) -> ASRModel:
  # Summarization removed in ASR-only mode
 
 
-@app.command()
-def transcribe(
+@app.callback(invoke_without_command=True)
+def main(
     input_path: Optional[Path] = typer.Option(
         None, "--input", "-i", exists=True, readable=True, help="Audio or video file to transcribe."
     ),
@@ -52,7 +52,8 @@ def transcribe(
         try:
             speakers = list_loopback_speakers()
         except Exception as exc:  # pragma: no cover - env dependent
-            raise typer.Exit(str(exc))
+            typer.echo(str(exc))
+            raise typer.Exit(1)
         typer.echo("Speakers (loopback via soundcard):")
         for sp in speakers:
             typer.echo(f"  {sp['index']}: {sp['name']}")

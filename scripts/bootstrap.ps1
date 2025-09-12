@@ -57,9 +57,9 @@ if ($Torch -ne "skip") {
   Write-Warn "Skipping PyTorch install (Whisper will not work without it)."
 }
 
-Write-Step "Install project + Whisper"
-if ($Editable) { Py -m pip install -e .[whisper] }
-else { Py -m pip install .[whisper] }
+Write-Step "Install project"
+if ($Editable) { Py -m pip install -e . }
+else { Py -m pip install . }
 
 Write-Step "Verify soundcard"
 Py -c "import soundcard as sc;print([s.name for s in sc.all_speakers()])"
@@ -86,4 +86,4 @@ Write-Step "Done"
 Write-Host "Usage examples:" -ForegroundColor Green
 Write-Host "  python -m zoom_to_text.cli --list-devices" -ForegroundColor Green
 Write-Host "  python -m zoom_to_text.cli --live --device <index> --output-dir outdir" -ForegroundColor Green
-Write-Host "  python -m zoom_to_text.cli transcribe --input input.wav --output-dir outdir" -ForegroundColor Green
+Write-Host "  python -m zoom_to_text.cli --input input.wav --output-dir outdir" -ForegroundColor Green
