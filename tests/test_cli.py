@@ -8,7 +8,7 @@ runner = CliRunner()
 
 
 def test_cli_requires_input():
-    result = runner.invoke(app, ["transcribe"])
+    result = runner.invoke(app, [])
     assert result.exit_code != 0
 
 
@@ -27,7 +27,6 @@ def test_cli_file_transcription(tmp_path: Path, monkeypatch):
     result = runner.invoke(
         app,
         [
-            "transcribe",
             "--input",
             str(audio),
             "--output",

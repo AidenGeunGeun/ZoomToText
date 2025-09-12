@@ -30,8 +30,8 @@ def list_loopback_speakers() -> list[dict]:  # pragma: no cover - passthrough
 
 def record_until_stop_soundcard(
     output_path: Path,
-    samplerate: int = 16000,
-    channels: int = 1,
+    samplerate: int = 48000,
+    channels: int = 2,
     device: str | int | None = None,
 ) -> None:
     """Record system audio using the 'soundcard' library until Ctrl+C.
@@ -71,12 +71,25 @@ def record_until_stop_soundcard(
         wf.setsampwidth(2)  # 16-bit samples
         wf.setframerate(samplerate)
 
+        # Suppress benign discontinuity warnings from Media Foundation backend
+        import warnings
+        try:  # type: ignore[attr-defined]
+            warnings.filterwarnings(
+                "ignore",
+                category=sc.SoundcardRuntimeWarning,  # type: ignore[attr-defined]
+                message="data discontinuity in recording",
+            )
+        except Exception:
+            pass
+
         with loopback_mic.recorder(samplerate=samplerate, channels=channels) as rec:  # type: ignore[attr-defined]
             print("Recording (system audio)... Press Ctrl+C to stop.")
             try:
                 while True:
-                    data = rec.record(2048)
-                    # Convert float32 [-1,1] to int16 PCM
+                    # Use a chunk size aligned to 48 kHz clock (~10 ms)
+                    chunk = 4800 if samplerate == 48000 else 2048
+                    data = rec.record(chunk)
+                    # Convert float32 [-1,1] to int16 PCM (stereo by default)
                     data = np.clip(data, -1.0, 1.0)
                     pcm = (data * 32767.0).astype(np.int16).tobytes()
                     wf.writeframes(pcm)

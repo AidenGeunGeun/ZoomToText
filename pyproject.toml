@@ -7,13 +7,12 @@ authors = [{name = "ZoomToText"}]
 dependencies = [
     "typer>=0.12",
     "soundcard>=0.4.2",
+    "openai-whisper>=20231117",
 ]
 
-# Whisper is optional; the CLI falls back to dummy ASR when missing.
-# Users should install `whisper` separately if needed.
+# Whisper is required; DummyASR remains available for tests/examples.
 
 [project.optional-dependencies]
-whisper = ["openai-whisper>=20231117"]
 dev = [
     "black>=24.3.0",
     "ruff>=0.5.0",

@@ -11,7 +11,7 @@ Windows‑native CLI that performs local Whisper ASR on audio from a file or fro
 ## Requirements
 - Windows 10/11
 - Python 3.10+
-- FFmpeg on PATH for non‑WAV inputs (recommended)
+ - FFmpeg on PATH (required). Verify with: `ffmpeg -version`
 
 ## Install
 
@@ -32,16 +32,18 @@ Option B — manual steps (use a virtual environment):
 ```
 python -m venv .venv
 . .\.venv\Scripts\Activate.ps1
+winget install -e --id Gyan.FFmpeg  # or install FFmpeg by your preferred method
+ffmpeg -version  # verify it's on PATH
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install soundcard
 python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-python -m pip install .[whisper]
+python -m pip install .
 ```
 
 Notes:
 - Always install inside your virtual environment.
-- To support formats like mp3/m4a/mp4, install FFmpeg (e.g., `winget install -e --id Gyan.FFmpeg`).
-- Loopback capture uses `soundcard` and works on common Windows setups without extra config.
+- FFmpeg is required; Whisper uses it for robust decoding/resampling.
+- Loopback capture uses `soundcard` and records at 48 kHz to match Windows shared mode.
 
 ## Usage
 
@@ -63,6 +65,8 @@ Capture system audio (live) until Ctrl+C:
 python -m zoom_to_text.cli --live --device <index> --output-dir outdir
 ```
 
+Note: Live capture records at 48 kHz; Whisper+FFmpeg will handle resampling/downmixing.
+
 Model selection:
 - Default is `--asr-model turbo`; if unavailable, falls back to `large-v3` automatically.
 - You can choose other Whisper models (e.g., `small`, `base`, `large-v3`) or `dummy` for tests.
@@ -74,15 +78,15 @@ Outputs (no overwrites):
 Tip: `--output-dir` also has an alias `--output`.
 
 ## Troubleshooting
-- FFmpeg missing: If non‑WAV inputs fail, install FFmpeg and ensure it’s on PATH.
+- FFmpeg missing: If you see an error like "ffmpeg is required but was not found in PATH", install FFmpeg (e.g., `winget install -e --id Gyan.FFmpeg`) and ensure `ffmpeg` runs in your terminal.
 - No devices listed: Ensure `soundcard` is installed and you have at least one playback device enabled in Windows.
 - GPU not used: Install the matching CUDA wheel via `-Torch cu121` or `-Torch cu122` in the bootstrap script, and verify your NVIDIA drivers.
-- Whisper not installed: Install extras with `pip install .[whisper]`.
+- Whisper not installed: Reinstall the project (`pip install .`) after ensuring PyTorch is installed; see above. Whisper is a required dependency.
 
 ## Development
 
 ```
-python -m pip install .[dev,whisper]
+python -m pip install .[dev]
 pre-commit install
 pytest -q
 ```
