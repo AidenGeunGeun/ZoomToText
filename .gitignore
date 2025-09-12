@@ -1,2 +1,11 @@
-__pycache__/
-*.pyc
+ pycache/
+ *.pyc
+ .venv/
+ venv/
+ build/
+ dist/
+ *.egg-info/
+.pytest_cache/
+.mypy_cache/
+output/
+outdir/
