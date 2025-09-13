@@ -47,6 +47,13 @@ Notes:
 
 ## Usage
 
+First, activate the venv (Powershell):
+
+```
+.venv\Scripts\Activate.ps1
+```
+
+
 List devices (loopback speakers):
 
 ```
