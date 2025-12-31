@@ -7,6 +7,8 @@ for the simplified MVP.
 from __future__ import annotations
 
 from pathlib import Path
+import threading
+from typing import Callable
 import wave
 
 try:  # pragma: no cover - optional at import time
@@ -33,12 +35,15 @@ def record_until_stop_soundcard(
     samplerate: int = 48000,
     channels: int = 2,
     device: str | int | None = None,
+    stop_event: threading.Event | None = None,
+    status_callback: Callable[[str], None] | None = None,
 ) -> None:
     """Record system audio using the 'soundcard' library until Ctrl+C.
 
     - device may be a speaker index (from list_loopback_speakers()) or a
       substring of the speaker name; when omitted, the default speaker is used.
     - Audio is saved as 16-bit PCM WAV at ``samplerate`` with ``channels``.
+    - stop_event may be provided to stop recording without Ctrl+C.
     """
     if sc is None:
         raise RuntimeError(
@@ -87,9 +92,16 @@ def record_until_stop_soundcard(
             pass
 
         with loopback_mic.recorder(samplerate=samplerate, channels=channels) as rec:  # type: ignore[attr-defined]
-            print("Recording (system audio)... Press Ctrl+C to stop.")
+            if status_callback:
+                status_callback("Recording (system audio)...")
+            else:
+                print("Recording (system audio)... Press Ctrl+C to stop.")
+            stopped_by_event = False
             try:
                 while True:
+                    if stop_event and stop_event.is_set():
+                        stopped_by_event = True
+                        break
                     # Use a chunk size aligned to 48 kHz clock (~10 ms)
                     chunk = 4800 if samplerate == 48000 else 2048
                     data = rec.record(chunk)
@@ -98,4 +110,12 @@ def record_until_stop_soundcard(
                     pcm = (data * 32767.0).astype(np.int16).tobytes()
                     wf.writeframes(pcm)
             except KeyboardInterrupt:
-                print("\nStopped recording.")
+                if status_callback:
+                    status_callback("Stopped recording.")
+                else:
+                    print("\nStopped recording.")
+            if stopped_by_event:
+                if status_callback:
+                    status_callback("Stopped recording.")
+                else:
+                    print("Stopped recording.")
