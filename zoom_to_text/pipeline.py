@@ -36,7 +36,7 @@ def process_audio(
     output_dir.mkdir(parents=True, exist_ok=True)
     segments: List[Segment] = asr.transcribe(input_path)
     transcript = format_transcript(segments)
-    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     transcript_path = output_dir / f"transcript-{ts}.txt"
     transcript_path.write_text(transcript, encoding="utf-8")
     metadata = [

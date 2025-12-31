@@ -22,7 +22,7 @@ def list_loopback_speakers() -> list[dict]:  # pragma: no cover - passthrough
     """
     if sc is None:
         raise RuntimeError(
-            "soundcard is required. Install with 'pip install soundcard' or via project extras."
+            "soundcard is required. Install with 'pip install soundcard' or 'pip install .[live]'."
         )
     speakers = sc.all_speakers()  # type: ignore[attr-defined]
     return [{"index": i, "name": s.name} for i, s in enumerate(speakers)]
@@ -42,7 +42,7 @@ def record_until_stop_soundcard(
     """
     if sc is None:
         raise RuntimeError(
-            "soundcard is not installed. Install with 'pip install soundcard' to enable loopback."
+            "soundcard is not installed. Install with 'pip install soundcard' or 'pip install .[live]'."
         )
     import numpy as np  # lazy import inside function
 
@@ -60,6 +60,10 @@ def record_until_stop_soundcard(
             if device.lower() in (sp.name or "").lower():
                 speaker = sp
                 break
+        if speaker is None:
+            raise RuntimeError(
+                f"No speaker matched '{device}'. Use --list-devices to see available speakers."
+            )
     if speaker is None:
         speaker = sc.default_speaker()  # type: ignore[attr-defined]
 

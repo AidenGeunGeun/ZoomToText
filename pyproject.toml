@@ -6,7 +6,6 @@ description = "Windows CLI tool for local Whisper ASR (live or file)."
 authors = [{name = "ZoomToText"}]
 dependencies = [
     "typer>=0.12",
-    "soundcard>=0.4.2",
     "openai-whisper>=20231117",
 ]
 
@@ -17,6 +16,13 @@ dev = [
     "black>=24.3.0",
     "ruff>=0.5.0",
     "pre-commit>=3.6.0",
+]
+live = [
+    "soundcard>=0.4.2",
+]
+summarizers = [
+    "openai>=1.0.0",
+    "google-generativeai>=0.7.2",
 ]
 
 [tool.pytest.ini_options]
