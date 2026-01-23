@@ -26,6 +26,7 @@ live = [
 summarizers = [
     "openai>=1.0.0",
     "google-generativeai>=0.7.2",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.scripts]

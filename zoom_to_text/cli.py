@@ -1,4 +1,5 @@
 """Command line interface for ZoomToText (ASR-only)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -12,6 +13,17 @@ from .asr import ASRModel, DummyASR, WhisperASR
 from .pipeline import process_audio
 from .capture import record_until_stop_soundcard, list_loopback_speakers
 
+# @TODO-1 — Add Summarizer import
+from .summarizer import GeminiSummarizer, Summarizer
+
+# Load .env file if python-dotenv is available
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
 app = typer.Typer(add_completion=False)
 
 
@@ -24,7 +36,7 @@ def _resolve_asr(model: str) -> ASRModel:
     return primary
 
 
- # Summarization removed in ASR-only mode
+# Summarization removed in ASR-only mode
 
 
 @app.callback(invoke_without_command=True)
@@ -32,8 +44,12 @@ def main(
     input_path: Optional[Path] = typer.Option(
         None, "--input", "-i", exists=True, readable=True, help="Audio or video file to transcribe."
     ),
-    live: bool = typer.Option(False, help="Capture system audio (loopback) instead of reading from file."),
-    device: Optional[str] = typer.Option(None, help="Speaker index (preferred) or name substring for loopback capture."),
+    live: bool = typer.Option(
+        False, help="Capture system audio (loopback) instead of reading from file."
+    ),
+    device: Optional[str] = typer.Option(
+        None, help="Speaker index (preferred) or name substring for loopback capture."
+    ),
     output_dir: Path = typer.Option(
         Path("output"),
         "--output",
@@ -44,7 +60,19 @@ def main(
         "turbo",
         help="ASR model name: e.g., 'turbo' (default), 'large-v3', 'small', or 'dummy'.",
     ),
-    list_devices_flag: bool = typer.Option(False, "--list-devices", help="List loopback speakers and exit"),
+    list_devices_flag: bool = typer.Option(
+        False, "--list-devices", help="List loopback speakers and exit"
+    ),
+    # @TODO-2 — Add --summarize and --api-key parameters
+    summarize: bool = typer.Option(
+        False, "--summarize", help="Generate summary using Gemini API after transcription."
+    ),
+    api_key: Optional[str] = typer.Option(
+        None,
+        "--api-key",
+        envvar="GEMINI_API_KEY",
+        help="Gemini API key (or set GEMINI_API_KEY env var).",
+    ),
 ) -> None:
     """Transcribe an audio/video file or live capture and write transcript + segments."""
 
@@ -66,6 +94,11 @@ def main(
 
     if not live and input_path is None:
         raise typer.BadParameter("--input is required when not using --live")
+    # @TODO-3 — Add API key validation for --summarize
+    if summarize and not api_key:
+        raise typer.BadParameter(
+            "--summarize requires an API key. Provide --api-key or set GEMINI_API_KEY env var."
+        )
 
     temp_path: Optional[Path] = None
     try:
@@ -85,8 +118,14 @@ def main(
             input_path = temp_path
 
         asr = _resolve_asr(asr_model)
-        process_audio(input_path, asr, output_dir)
+        # @TODO-4 — Create summarizer and pass to pipeline
+        summarizer: Summarizer | None = None
+        if summarize and api_key:
+            summarizer = GeminiSummarizer(api_key=api_key, model="gemini-3-flash-preview")
+        result = process_audio(input_path, asr, output_dir, summarizer=summarizer)
         typer.echo(f"Transcript and segments written to {output_dir}")
+        if result[2] is not None:
+            typer.echo(f"Summary written to {result[2]}")
     finally:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)
