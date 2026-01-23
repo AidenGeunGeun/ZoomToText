@@ -14,11 +14,9 @@ def test_process_audio(tmp_path: Path):
         Segment(start=1.0, end=2.0, text="world", confidence=0.1),
     ]
     asr = DummyASR(segments)
-    transcript_path, metadata_path = process_audio(audio, asr, tmp_path)
-    assert (
-        transcript_path.read_text()
-        == "[00:00:00] hello\n[00:00:01] world [LOW CONFIDENCE]"
-    )
+    transcript_path, metadata_path, summary_path = process_audio(audio, asr, tmp_path)
+    assert summary_path is None  # No summarizer provided
+    assert transcript_path.read_text() == "[00:00:00] hello\n[00:00:01] world [LOW CONFIDENCE]"
     metadata = json.loads(metadata_path.read_text())
     assert metadata[1]["confidence"] == 0.1
     assert metadata[1]["model"] is None
