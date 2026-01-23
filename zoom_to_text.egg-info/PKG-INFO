@@ -1,0 +1,22 @@
+Metadata-Version: 2.4
+Name: zoom-to-text
+Version: 0.1.0
+Summary: Windows CLI tool for local Whisper ASR (live or file).
+Author: ZoomToText
+Requires-Python: >=3.10
+License-File: LICENSE
+Requires-Dist: typer>=0.12
+Requires-Dist: openai-whisper>=20231117
+Provides-Extra: dev
+Requires-Dist: black>=24.3.0; extra == "dev"
+Requires-Dist: ruff>=0.5.0; extra == "dev"
+Requires-Dist: pre-commit>=3.6.0; extra == "dev"
+Provides-Extra: gui
+Requires-Dist: PySide6>=6.6; extra == "gui"
+Provides-Extra: live
+Requires-Dist: soundcard>=0.4.2; extra == "live"
+Provides-Extra: summarizers
+Requires-Dist: openai>=1.0.0; extra == "summarizers"
+Requires-Dist: google-generativeai>=0.7.2; extra == "summarizers"
+Requires-Dist: python-dotenv>=1.0.0; extra == "summarizers"
+Dynamic: license-file

@@ -1,0 +1,2 @@
+[console_scripts]
+zoom-to-text-gui = zoom_to_text.gui_app:main

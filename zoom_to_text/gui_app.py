@@ -1,4 +1,5 @@
 """Windows-first GUI for ZoomToText using PySide6."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,6 +16,9 @@ from typing import TYPE_CHECKING, Optional
 from .asr import ASRModel, DummyASR, WhisperASR
 from .capture import list_loopback_speakers, record_until_stop_soundcard
 from .pipeline import process_audio
+
+# @TODO-8 — Import Summarizer
+from .summarizer import GeminiSummarizer, Summarizer
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QObject
@@ -41,6 +45,9 @@ class AppSettings:
     open_transcript: bool
     last_input_path: str | None
     last_device_index: int | None
+    # @TODO-9 — Add summarization settings
+    summarize_enabled: bool
+    api_key: str | None
 
     def to_dict(self) -> dict:
         return {
@@ -50,6 +57,8 @@ class AppSettings:
             "open_transcript": self.open_transcript,
             "last_input_path": self.last_input_path,
             "last_device_index": self.last_device_index,
+            "summarize_enabled": self.summarize_enabled,
+            "api_key": self.api_key,
         }
 
     @classmethod
@@ -62,6 +71,8 @@ class AppSettings:
             open_transcript=bool(data.get("open_transcript", False)),
             last_input_path=data.get("last_input_path"),
             last_device_index=data.get("last_device_index"),
+            summarize_enabled=bool(data.get("summarize_enabled", False)),
+            api_key=data.get("api_key") or os.environ.get("GEMINI_API_KEY"),
         )
 
 
@@ -118,11 +129,14 @@ def _build_worker(
     *,
     live: bool,
     device: int | str | None,
+    # @TODO-11 — Add summarizer parameter
+    summarizer: Summarizer | None = None,
 ) -> "QObject":
     from PySide6.QtCore import QObject, Signal
 
     class TranscriptionWorker(QObject):
-        finished = Signal(Path, Path)
+        # @TODO-12 — Update signal to include optional summary_path
+        finished = Signal(Path, Path, object)  # transcript, metadata, summary (or None)
         error = Signal(str)
         status = Signal(str)
 
@@ -155,8 +169,12 @@ def _build_worker(
                     self.status.emit("Transcribing file...")
                 if active_input is None:
                     raise RuntimeError("No input selected.")
-                transcript_path, metadata_path = process_audio(active_input, asr, output_dir)
-                self.finished.emit(transcript_path, metadata_path)
+                if summarizer is not None:
+                    self.status.emit("Transcribing and summarizing...")
+                transcript_path, metadata_path, summary_path = process_audio(
+                    active_input, asr, output_dir, summarizer=summarizer
+                )
+                self.finished.emit(transcript_path, metadata_path, summary_path)
             except Exception as exc:
                 self.error.emit(str(exc))
             finally:
@@ -214,6 +232,16 @@ def main() -> None:
             self.open_output_checkbox.setChecked(self.settings.open_output_folder)
             self.open_transcript_checkbox = QCheckBox("Open transcript when complete")
             self.open_transcript_checkbox.setChecked(self.settings.open_transcript)
+            # @TODO-10 — Add summarization UI elements
+            self.summarize_checkbox = QCheckBox("Generate summary after transcription")
+            self.summarize_checkbox.setChecked(self.settings.summarize_enabled)
+            self.api_key_edit = QLineEdit()
+            self.api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+            self.api_key_edit.setPlaceholderText(
+                "Enter Gemini API key or set GEMINI_API_KEY env var"
+            )
+            if self.settings.api_key:
+                self.api_key_edit.setText(self.settings.api_key)
 
             self.device_combo = QComboBox()
             self.device_combo.addItem("Default speaker", None)
@@ -299,6 +327,8 @@ def main() -> None:
             form.addRow("ASR Model", self.model_combo)
             form.addRow("", self.open_output_checkbox)
             form.addRow("", self.open_transcript_checkbox)
+            form.addRow("", self.summarize_checkbox)
+            form.addRow("Gemini API Key", self.api_key_edit)
 
             layout.addLayout(form)
             layout.addStretch()
@@ -340,6 +370,19 @@ def main() -> None:
 
         def _current_model(self) -> str:
             return self.model_combo.currentText().strip() or "turbo"
+
+        def _create_summarizer(self) -> Summarizer | None:
+            """Create summarizer if enabled and API key available."""
+            if not self.summarize_checkbox.isChecked():
+                return None
+            api_key = self.api_key_edit.text().strip() or os.environ.get("GEMINI_API_KEY")
+            if not api_key:
+                self._show_error(
+                    "Missing API Key",
+                    "Summarization requires a Gemini API key. Enter it in Settings or set GEMINI_API_KEY env var.",
+                )
+                return None
+            return GeminiSummarizer(api_key=api_key, model="gemini-3-flash-preview")
 
         def refresh_devices(self) -> None:
             self.device_combo.clear()
@@ -389,12 +432,17 @@ def main() -> None:
             self.settings.model_name = model_name
             save_settings(self.settings)
 
+            summarizer = self._create_summarizer()
+            if self.summarize_checkbox.isChecked() and summarizer is None:
+                return  # Error already shown
+
             worker = _build_worker(
                 input_path,
                 output_dir,
                 model_name,
                 live=False,
                 device=None,
+                summarizer=summarizer,
             )
             self._set_status("Preparing transcription...")
             self._start_worker(worker, live=False)
@@ -413,12 +461,17 @@ def main() -> None:
             self.settings.model_name = model_name
             save_settings(self.settings)
 
+            summarizer = self._create_summarizer()
+            if self.summarize_checkbox.isChecked() and summarizer is None:
+                return  # Error already shown
+
             worker = _build_worker(
                 None,
                 output_dir,
                 model_name,
                 live=True,
                 device=device,
+                summarizer=summarizer,
             )
             self._set_status("Starting live capture...")
             self._start_worker(worker, live=True)
@@ -431,17 +484,24 @@ def main() -> None:
                 stop()
                 self._set_status("Stopping recording...")
 
-        def _on_transcription_complete(self, transcript_path: Path, metadata_path: Path) -> None:
+        def _on_transcription_complete(
+            self, transcript_path: Path, metadata_path: Path, summary_path: Path | None
+        ) -> None:
             self._set_running(False, live=False)
-            self._set_status("Transcription complete.")
+            status = (
+                "Transcription complete."
+                if summary_path is None
+                else "Transcription and summary complete."
+            )
+            self._set_status(status)
             if self.open_output_checkbox.isChecked():
                 _open_path(transcript_path.parent)
             if self.open_transcript_checkbox.isChecked():
                 _open_path(transcript_path)
-            self._show_message(
-                "Transcription complete",
-                f"Transcript:\n{transcript_path}\n\nSegments:\n{metadata_path}",
-            )
+            msg = f"Transcript:\n{transcript_path}\n\nSegments:\n{metadata_path}"
+            if summary_path is not None:
+                msg += f"\n\nSummary:\n{summary_path}"
+            self._show_message("Complete", msg)
 
         def _on_worker_error(self, message: str) -> None:
             self._set_running(False, live=False)
@@ -459,6 +519,8 @@ def main() -> None:
             self.settings.model_name = self._current_model()
             self.settings.open_output_folder = self.open_output_checkbox.isChecked()
             self.settings.open_transcript = self.open_transcript_checkbox.isChecked()
+            self.settings.summarize_enabled = self.summarize_checkbox.isChecked()
+            self.settings.api_key = self.api_key_edit.text().strip() or None
             save_settings(self.settings)
             event.accept()
 
